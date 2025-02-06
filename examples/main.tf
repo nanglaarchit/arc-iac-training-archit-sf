@@ -1,18 +1,24 @@
-
 provider "aws" {
-  region = "us-east-1"  
+  region = "us-east-1"
 }
 
 module "network" {
-  source = "../modules/network" 
+  source          = "../modules/network"
   name            = "prod-network"
   vpc_cidr        = "10.1.0.0/16"
   public_subnets  = ["10.1.1.0/24", "10.1.2.0/24"]
   private_subnets = ["10.1.3.0/24", "10.1.4.0/24"]
   azs             = ["us-east-1a", "us-east-1b"]
 }
+
 output "vpc_id" {
   value = module.network.vpc_id
+}
+output "public_subnets" {
+  value = module.network.public_subnets
+}
+output "private_subnets" {
+  value = module.network.private_subnets
 }
 
 module "ec2_instance" {
@@ -20,9 +26,10 @@ module "ec2_instance" {
   name                = "archit"
   ami_id              = "ami-0f214d1b3d031dc53"
   instance_type       = "t3.medium"
-  subnet_id           = "subnet-034f043f1b9b8df90"
-  vpc_id              = "vpc-68f96212"
+  subnet_id           = module.network.public_subnets[0]
+  vpc_id              = module.network.vpc_id
   associate_public_ip = true
+
   sg_ingress = [
     {
       from_port   = 22
@@ -49,4 +56,37 @@ module "ec2_instance" {
       volume_type = "gp3"
     }
   ]
+}
+
+module "rds" {
+  source            = "../modules/rds"
+  name              = "archit"
+  allocated_storage = 30
+  storage_type      = "gp3"
+  engine            = "mysql"
+  engine_version    = "8.0"
+  instance_class    = "db.t3.micro"
+  db_name           = "arciactraining"
+  username          = "archit"
+  password          = "sourcefuse0987"
+  port              = 3306
+  multi_az          = false
+  subnet_ids        = module.network.private_subnets
+  vpc_id            = module.network.vpc_id
+
+  sg_ingress = [
+    {
+      from_port   = 3306
+      to_port     = 3306
+      protocol    = "tcp"
+      cidr_blocks = ["10.1.1.0/24"] 
+    }
+  ]
+}
+
+output "rds_instance_id" {
+  value = module.rds.rds_instance_id
+}
+output "rds_security_group_id" {
+  value = module.rds.rds_security_group_id
 }
