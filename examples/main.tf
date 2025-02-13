@@ -44,6 +44,7 @@ module "ec2_instance" {
       cidr_blocks = ["0.0.0.0/0"]
     }
   ]
+
   ebs_volumes = [
     {
       device_name = "/dev/sdb"
@@ -56,6 +57,27 @@ module "ec2_instance" {
       volume_type = "gp3"
     }
   ]
+
+  depends_on = [module.network]
+}
+
+resource "random_password" "rds_password" {
+  length           = 16
+  special          = true
+  override_special = "!@#%&*()-_=+[]{}<>?"
+}
+resource "aws_ssm_parameter" "rds_password" {
+  name  = "/rds/password"
+  type  = "SecureString"
+  value = random_password.rds_password.result
+  tags = {
+    Name = "Archit"
+  }
+}
+data "aws_ssm_parameter" "rds_password" {
+  name            = "/rds/password"
+  with_decryption = true
+  depends_on      = [aws_ssm_parameter.rds_password]
 }
 
 module "rds" {
@@ -68,7 +90,7 @@ module "rds" {
   instance_class    = "db.t3.micro"
   db_name           = "arciactraining"
   username          = "archit"
-  password          = "sourcefuse0987"
+  password          = data.aws_ssm_parameter.rds_password.value
   port              = 3306
   multi_az          = false
   subnet_ids        = module.network.private_subnets
@@ -79,9 +101,11 @@ module "rds" {
       from_port   = 3306
       to_port     = 3306
       protocol    = "tcp"
-      cidr_blocks = ["10.1.1.0/24"] 
+      cidr_blocks = ["10.1.1.0/24"]
     }
   ]
+
+  depends_on = [module.network, module.ec2_instance]
 }
 
 output "rds_instance_id" {
