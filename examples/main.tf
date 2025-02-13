@@ -104,7 +104,7 @@ module "rds" {
       cidr_blocks = ["10.1.1.0/24"]
     }
   ]
-
+  skip_final_snapshot = true 
   depends_on = [module.network, module.ec2_instance]
 }
 
