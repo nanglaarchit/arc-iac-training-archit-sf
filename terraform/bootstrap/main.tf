@@ -10,11 +10,7 @@ terraform {
       version = ">= 4.0"
     }
   }
-  backend "s3" {
-    bucket         = "archit-nangla-arc-iac"
-    key            = "bootstrap/terraform.tfstate"
-    region         = "us-east-1"  
-  } 
+  backend "s3" {} 
 }
 
 provider "aws" {
